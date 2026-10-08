@@ -1,0 +1,1 @@
+{"name":"andx-pipeline","private":true,"workspaces":["gateway","aggregator","earnings","api","classifier"]}

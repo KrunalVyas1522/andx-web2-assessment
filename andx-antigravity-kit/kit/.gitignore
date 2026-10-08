@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.*
+data-*/
+expected-*.json
+*.ndjson
+*.ndjson.gz
+docs/ASSESSMENT.md
+.tmp/
+coverage/
