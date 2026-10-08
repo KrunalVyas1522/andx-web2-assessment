@@ -117,8 +117,8 @@ export class ApiService {
 
         if (rows.length === 0) break;
 
-        const events = rows.map(r => typeof r.payload === 'string' ? JSON.parse(r.payload) : r.payload);
-        const eventIds = rows.map(r => r.event_id);
+        const events = rows.map((r: any) => typeof r.payload === 'string' ? JSON.parse(r.payload) : r.payload);
+        const eventIds = rows.map((r: any) => r.event_id);
 
         // Push to BullMQ. We chunk them into one batch job to match gateway behavior,
         // or just add them as a view_snapshot_batch.
@@ -190,7 +190,7 @@ export class ApiService {
     } catch (e) {}
 
     let total_cents = 0;
-    const campaigns = entries.map(e => {
+    const campaigns = entries.map((e: any) => {
       const earned_cents = Number(e.earned_cents);
       total_cents += earned_cents;
       return {
@@ -303,7 +303,7 @@ export class ApiService {
 
       const rows = await this.em.query(query, [campaignId, fromMs, toMs, cursorG, cursorC, limit]);
       
-      items = rows.map(r => ({
+      items = rows.map((r: any) => ({
         clip_id: r.clip_id,
         creator_id: r.creator_id,
         views_gained: Number(r.views_gained)
