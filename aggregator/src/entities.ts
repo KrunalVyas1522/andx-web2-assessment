@@ -58,9 +58,6 @@ export class DlqEvent {
 
   @Column('jsonb')
   payload: any;
-
-  @CreateDateColumn()
-  created_at: Date;
 }
 
 @Entity({ schema: 'aggregator', name: 'outbox' })
