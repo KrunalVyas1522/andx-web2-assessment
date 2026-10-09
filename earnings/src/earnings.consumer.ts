@@ -26,12 +26,13 @@ export class EarningsConsumer extends WorkerHost {
 
       await manager.insert(ProcessedUpdate, { aggregator_tx_id: payload.aggregator_tx_id });
 
-      await manager.createQueryBuilder()
-        .insert()
-        .into(DirtyCampaign)
-        .values({ campaign_id: payload.campaign_id })
-        .orUpdate(['updated_at'], ['campaign_id'])
-        .execute();
+      await manager.query(`
+        INSERT INTO earnings.dirty_campaigns (campaign_id, version, updated_at)
+        VALUES ($1, 1, NOW())
+        ON CONFLICT (campaign_id) DO UPDATE SET
+          version = earnings.dirty_campaigns.version + 1,
+          updated_at = NOW()
+      `, [payload.campaign_id]);
     });
   }
 }

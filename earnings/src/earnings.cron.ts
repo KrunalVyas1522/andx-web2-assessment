@@ -38,11 +38,15 @@ export class EarningsCron implements OnModuleInit, OnModuleDestroy {
 
   async computeCampaign(campaignId: string) {
     await this.entityManager.transaction(async (manager) => {
+      const dirty = await manager.findOne(DirtyCampaign, { where: { campaign_id: campaignId } });
+      if (!dirty) return;
+      const currentVersion = dirty.version;
+
       // Fetch campaign from api.campaigns
       const apiCamps = await manager.query('SELECT * FROM api.campaigns WHERE id = $1', [campaignId]);
       if (apiCamps.length === 0) {
-        // Unknown campaign, maybe delete from dirty?
-        await manager.delete(DirtyCampaign, { campaign_id: campaignId });
+        // Unknown campaign, delete from dirty
+        await manager.delete(DirtyCampaign, { campaign_id: campaignId, version: currentVersion });
         return;
       }
       const campaign = apiCamps[0];
@@ -118,7 +122,7 @@ export class EarningsCron implements OnModuleInit, OnModuleDestroy {
           clips.sort((a: any, b: any) => {
             if (a.remainder_i > b.remainder_i) return -1;
             if (a.remainder_i < b.remainder_i) return 1;
-            return a.clip_id.localeCompare(b.clip_id);
+            return a.clip_id < b.clip_id ? -1 : (a.clip_id > b.clip_id ? 1 : 0);
           });
           
           for (let i = 0; i < left && i < clips.length; i++) {
@@ -130,11 +134,14 @@ export class EarningsCron implements OnModuleInit, OnModuleDestroy {
       }
 
       // Group earnings by creator
-      const creatorEarningsMap = new Map<string, bigint>();
+      const creatorEarningsMap = new Map<string, { earned: bigint, clips: number }>();
       clips.forEach((c: any) => {
         if (c.paid_i > 0n) {
-          const current = creatorEarningsMap.get(c.creator_id) || 0n;
-          creatorEarningsMap.set(c.creator_id, current + c.paid_i);
+          const current = creatorEarningsMap.get(c.creator_id) || { earned: 0n, clips: 0 };
+          creatorEarningsMap.set(c.creator_id, {
+            earned: current.earned + c.paid_i,
+            clips: current.clips + 1
+          });
         }
       });
 
@@ -142,10 +149,11 @@ export class EarningsCron implements OnModuleInit, OnModuleDestroy {
       await manager.delete(CreatorEarnings, { campaign_id: campaignId });
 
       // Insert new creator_earnings
-      const creatorEarningsInserts = Array.from(creatorEarningsMap.entries()).map(([creator_id, earned_cents]) => ({
+      const creatorEarningsInserts = Array.from(creatorEarningsMap.entries()).map(([creator_id, data]) => ({
         creator_id,
         campaign_id: campaignId,
-        earned_cents: earned_cents.toString()
+        clips: data.clips,
+        earned_cents: data.earned.toString()
       }));
 
       // We only insert if > 0
@@ -171,7 +179,10 @@ export class EarningsCron implements OnModuleInit, OnModuleDestroy {
         .execute();
 
       // Finally remove from dirty
-      await manager.delete(DirtyCampaign, { campaign_id: campaignId });
+      const delRes = await manager.delete(DirtyCampaign, { campaign_id: campaignId, version: currentVersion });
+      if (delRes.affected === 0) {
+        throw new Error(`Optimistic lock failed on DirtyCampaign ${campaignId} v${currentVersion}`);
+      }
     });
   }
 }
