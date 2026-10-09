@@ -38,6 +38,12 @@ export class ClipViewSnapshot {
   @PrimaryColumn('bigint')
   observed_at_ms: string;
 
+  @Column('text')
+  campaign_id: string;
+
+  @Column('text')
+  creator_id: string;
+
   @Column('int')
   views: number;
 }
@@ -61,6 +67,9 @@ export class DlqEvent {
 export class OutboxEvent {
   @PrimaryColumn('uuid')
   id: string;
+
+  @Column('text')
+  type: string;
 
   @Column('jsonb')
   payload: any;

@@ -87,7 +87,7 @@ export class SnapshotsConsumer extends BaseConsumer {
             views: event.view_count,
             observed_at_ms: observedAt,
             aggregator_tx_id: txId
-          }
+          } as any
         });
       });
     }
@@ -189,7 +189,7 @@ export class ReplayConsumer extends BaseConsumer {
               views: event.view_count,
               observed_at_ms: event.observed_at_ms,
               aggregator_tx_id: txId
-            }
+            } as any
           });
           
           await em.query(`DELETE FROM aggregator.dlq WHERE event_id = $1`, [event.event_id]);

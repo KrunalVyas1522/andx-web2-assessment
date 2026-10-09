@@ -41,6 +41,9 @@ export class DirtyCampaign {
   @Column({ primary: true, type: 'text' })
   campaign_id: string;
 
+  @Column('bigint', { default: 1 })
+  version: string;
+
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', onUpdate: 'CURRENT_TIMESTAMP' })
   updated_at: Date;
 }
