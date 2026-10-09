@@ -9,6 +9,15 @@ export class ProcessedEvent {
   processed_at: Date;
 }
 
+@Entity({ schema: 'aggregator', name: 'late_events' })
+export class LateEvent {
+  @PrimaryColumn('text')
+  event_id: string;
+
+  @CreateDateColumn()
+  processed_at: Date;
+}
+
 @Entity({ schema: 'aggregator', name: 'clip_metadata' })
 export class ClipMetadata {
   @PrimaryColumn('text')

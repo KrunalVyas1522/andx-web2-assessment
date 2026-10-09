@@ -2,10 +2,11 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import Redis from 'ioredis';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AggregatorConsumer } from './aggregator.consumer';
+import { SnapshotsConsumer, InvalidConsumer, ReplayConsumer } from './consumers';
 import { OutboxCron } from './outbox.cron';
 import {
   ProcessedEvent,
+  LateEvent,
   ClipMetadata,
   ClipViewSnapshot,
   DlqEvent,
@@ -21,6 +22,7 @@ import * as crypto from 'crypto';
       schema: 'aggregator',
       entities: [
         ProcessedEvent,
+        LateEvent,
         ClipMetadata,
         ClipViewSnapshot,
         DlqEvent,
@@ -30,6 +32,7 @@ import * as crypto from 'crypto';
     }),
     TypeOrmModule.forFeature([
       ProcessedEvent,
+      LateEvent,
       ClipMetadata,
       ClipViewSnapshot,
       DlqEvent,
@@ -47,10 +50,11 @@ import * as crypto from 'crypto';
         maxRetriesPerRequest: null,
       }),
     }),
-    BullModule.registerQueue({
-      name: 'views_updated',
-    }),
+    BullModule.registerQueue({ name: 'snapshots' }),
+    BullModule.registerQueue({ name: 'invalid' }),
+    BullModule.registerQueue({ name: 'dlq_replay' }),
+    BullModule.registerQueue({ name: 'views_updated' }),
   ],
-  providers: [AggregatorConsumer, OutboxCron],
+  providers: [SnapshotsConsumer, InvalidConsumer, ReplayConsumer, OutboxCron],
 })
 export class AppModule {}
