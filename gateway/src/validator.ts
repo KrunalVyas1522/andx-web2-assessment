@@ -64,11 +64,13 @@ export function validateEvent(line: string): ValidatedLine {
     if (typeof parsed.emitted_at !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(parsed.emitted_at)) {
       return { valid: false, event: parsed, rawLine: line };
     }
-    if (new Date(parsed.observed_at).toISOString() !== parsed.observed_at) return { valid: false, event: parsed, rawLine: line };
-    if (new Date(parsed.emitted_at).toISOString() !== parsed.emitted_at) return { valid: false, event: parsed, rawLine: line };
+    const obsDate = new Date(parsed.observed_at);
+    if (isNaN(obsDate.getTime()) || obsDate.toISOString() !== parsed.observed_at) return { valid: false, event: parsed, rawLine: line };
+    const emDate = new Date(parsed.emitted_at);
+    if (isNaN(emDate.getTime()) || emDate.toISOString() !== parsed.emitted_at) return { valid: false, event: parsed, rawLine: line };
     
-    const obsTime = new Date(parsed.observed_at).getTime();
-    const emTime = new Date(parsed.emitted_at).getTime();
+    const obsTime = obsDate.getTime();
+    const emTime = emDate.getTime();
     const minTime = Date.UTC(2020, 0, 1);
     const maxTime = Date.UTC(2100, 0, 1);
     
