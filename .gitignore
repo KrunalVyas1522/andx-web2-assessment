@@ -9,3 +9,4 @@ expected-*.json
 docs/ASSESSMENT.md
 .tmp/
 coverage/
+*.tsbuildinfo

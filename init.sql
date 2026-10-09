@@ -16,6 +16,13 @@ CREATE TABLE IF NOT EXISTS aggregator.late_events (
     event_id VARCHAR(64) PRIMARY KEY,
     processed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+CREATE TABLE IF NOT EXISTS aggregator.clip_metadata (
+    clip_id VARCHAR(50) PRIMARY KEY,
+    campaign_id VARCHAR(50) NOT NULL,
+    creator_id VARCHAR(50) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_clip_metadata_camp ON aggregator.clip_metadata (campaign_id);
+
 CREATE TABLE IF NOT EXISTS aggregator.clip_view_snapshots (
     clip_id VARCHAR(50) NOT NULL,
     campaign_id VARCHAR(50) NOT NULL,
@@ -24,10 +31,13 @@ CREATE TABLE IF NOT EXISTS aggregator.clip_view_snapshots (
     observed_at_ms BIGINT NOT NULL,
     PRIMARY KEY (clip_id, observed_at_ms)
 );
+CREATE INDEX IF NOT EXISTS idx_snapshots_camp_obs ON aggregator.clip_view_snapshots (campaign_id, observed_at_ms DESC);
+
 CREATE TABLE IF NOT EXISTS aggregator.outbox (
     id UUID PRIMARY KEY,
     type VARCHAR(50) NOT NULL,
     payload JSONB NOT NULL,
+    processed BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 CREATE TABLE IF NOT EXISTS aggregator.dlq (
@@ -35,6 +45,7 @@ CREATE TABLE IF NOT EXISTS aggregator.dlq (
     reason VARCHAR(50) NOT NULL,
     payload JSONB NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_dlq_reason ON aggregator.dlq (reason);
 
 CREATE SCHEMA IF NOT EXISTS earnings;
 CREATE TABLE IF NOT EXISTS earnings.processed_updates (
@@ -58,6 +69,7 @@ CREATE TABLE IF NOT EXISTS earnings.creator_earnings (
     earned_cents BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (creator_id, campaign_id)
 );
+CREATE INDEX IF NOT EXISTS idx_creator_earnings_user ON earnings.creator_earnings (creator_id);
 
 CREATE SCHEMA IF NOT EXISTS classifier;
 CREATE TABLE IF NOT EXISTS classifier.clip_relevance (

@@ -1,1 +1,17 @@
-{"name":"andx-pipeline","private":true,"workspaces":["gateway","aggregator","earnings","api","classifier"]}
+{
+  "name": "andx-pipeline",
+  "private": true,
+  "workspaces": [
+    "gateway",
+    "aggregator",
+    "earnings",
+    "api",
+    "classifier"
+  ],
+  "scripts": {
+    "test": "vitest run --globals"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.3"
+  }
+}
