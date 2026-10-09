@@ -20,7 +20,7 @@ import Redis from 'ioredis';
       }),
     }),
     BullModule.registerQueue({
-      name: 'raw_events',
+      name: 'dlq_replay',
     }),
     TypeOrmModule.forFeature([]),
   ],

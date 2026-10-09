@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectEntityManager } from '@nestjs/typeorm';
 import { EntityManager } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -6,11 +6,13 @@ import { Queue } from 'bullmq';
 
 @Injectable()
 export class ApiService {
+  private readonly logger = new Logger(ApiService.name);
+
   constructor(
     @InjectEntityManager()
     private readonly em: EntityManager,
-    @InjectQueue('raw_events')
-    private readonly rawEventsQueue: Queue,
+    @InjectQueue('dlq_replay')
+    private readonly replayQueue: Queue,
   ) {}
 
   async getHealth() {
@@ -71,17 +73,17 @@ export class ApiService {
       const res1 = await this.em.query(`SELECT COUNT(*) as cnt FROM aggregator.processed_events;`);
       distinct_valid_events = parseInt(res1[0].cnt, 10);
     } catch (e) {
-      // Ignore if table doesn't exist yet
+      this.logger.debug('Error getting processed_events count', e);
     }
 
-    // late_dropped from aggregator.late_events
     let late_dropped = 0;
     try {
       const res2 = await this.em.query(`SELECT COUNT(*) as cnt FROM aggregator.late_events;`);
       late_dropped = parseInt(res2[0].cnt, 10);
-    } catch (e) { }
+    } catch (e) {
+      this.logger.debug('Error getting late_events count', e);
+    }
 
-    // dlq_pending
     let dlq_invalid = 0;
     let dlq_unknown = 0;
     try {
@@ -90,7 +92,9 @@ export class ApiService {
         if (row.reason === 'invalid_schema') dlq_invalid = parseInt(row.cnt, 10);
         if (row.reason === 'unknown_campaign') dlq_unknown = parseInt(row.cnt, 10);
       }
-    } catch (e) { }
+    } catch (e) {
+      this.logger.debug('Error getting dlq count', e);
+    }
 
     return {
       distinct_valid_events,
@@ -104,42 +108,16 @@ export class ApiService {
 
   async replayDlq(reason: string) {
     if (!reason) {
-      return { replayed: 0 };
+      return { accepted: false };
     }
     
-    let replayed = 0;
     try {
-      const limit = 5000;
-      while (true) {
-        const rows = await this.em.query(`
-          SELECT event_id, payload FROM aggregator.dlq WHERE reason = $1 LIMIT $2
-        `, [reason, limit]);
-
-        if (rows.length === 0) break;
-
-        const events = rows.map((r: any) => typeof r.payload === 'string' ? JSON.parse(r.payload) : r.payload);
-        const eventIds = rows.map((r: any) => r.event_id);
-
-        // Push to BullMQ. We chunk them into one batch job to match gateway behavior,
-        // or just add them as a view_snapshot_batch.
-        await this.rawEventsQueue.add('view_snapshot_batch', {
-          version: 1, // Contract says internal events are versioned
-          type: 'view_snapshot_batch',
-          events: events,
-        });
-
-        // Delete from DLQ
-        await this.em.query(`
-          DELETE FROM aggregator.dlq WHERE event_id = ANY($1)
-        `, [eventIds]);
-
-        replayed += rows.length;
-      }
+      await this.replayQueue.add('replay_batch', { reason });
     } catch (e) {
-      console.error(e);
+      this.logger.error('Failed to enqueue replay job', e);
     }
     
-    return { replayed };
+    return {}; // 202 Accepted body
   }
 
   async getCampaignSpend(id: string) {
@@ -147,7 +125,9 @@ export class ApiService {
     try {
       const res = await this.em.query(`SELECT * FROM api.campaigns WHERE id = $1`, [id]);
       if (res.length > 0) campaign = res[0];
-    } catch (e) {}
+    } catch (e) {
+      this.logger.debug('Error getting campaign details', e);
+    }
 
     if (!campaign) {
       throw new NotFoundException();
@@ -159,7 +139,9 @@ export class ApiService {
       if (spendRes.length > 0) {
         spend = spendRes[0];
       }
-    } catch (e) {}
+    } catch (e) {
+      this.logger.debug('Error getting campaign spend', e);
+    }
 
     const budget_cents = Number(campaign.budget_cents);
     const raw_earnings_cents = Number(spend.raw_earnings_cents);
@@ -187,7 +169,9 @@ export class ApiService {
         WHERE creator_id = $1 AND earned_cents > 0
         ORDER BY campaign_id ASC
       `, [id]);
-    } catch (e) {}
+    } catch (e) {
+      this.logger.debug('Error getting creator earnings', e);
+    }
 
     let total_cents = 0;
     const campaigns = entries.map((e: any) => {
@@ -213,7 +197,9 @@ export class ApiService {
     try {
       const res = await this.em.query(`SELECT id FROM api.campaigns WHERE id = $1`, [campaignId]);
       if (res.length > 0) campaign = res[0];
-    } catch (e) {}
+    } catch (e) {
+      this.logger.debug('Error checking campaign existence for top clips', e);
+    }
     
     if (!campaign) {
       throw new NotFoundException();
@@ -230,8 +216,8 @@ export class ApiService {
       throw new BadRequestException("Invalid dates");
     }
 
-    if (fromDate.getMinutes() !== 0 || fromDate.getSeconds() !== 0 || fromDate.getMilliseconds() !== 0 ||
-        toDate.getMinutes() !== 0 || toDate.getSeconds() !== 0 || toDate.getMilliseconds() !== 0) {
+    if (fromDate.getUTCMinutes() !== 0 || fromDate.getUTCSeconds() !== 0 || fromDate.getUTCMilliseconds() !== 0 ||
+        toDate.getUTCMinutes() !== 0 || toDate.getUTCSeconds() !== 0 || toDate.getUTCMilliseconds() !== 0) {
       throw new BadRequestException("Timestamps must be on whole hours");
     }
 
@@ -258,6 +244,7 @@ export class ApiService {
         cursorG = Number(decoded.g);
         cursorC = decoded.c;
       } catch (e) {
+        this.logger.debug('Cursor parsing failed', e);
         throw new BadRequestException("Invalid cursor");
       }
     }
@@ -269,19 +256,16 @@ export class ApiService {
 
     let items = [];
     try {
-      // Explanation for EXPLAIN requirements:
-      // A query that computes V(clip, to) - V(clip, from) efficiently.
-      // Assuming a table `aggregator.clip_snapshots`:
       const query = `
         WITH v_from AS (
           SELECT DISTINCT ON (clip_id) clip_id, views as v_from
-          FROM aggregator.clip_snapshots
+          FROM aggregator.clip_view_snapshots
           WHERE campaign_id = $1 AND observed_at_ms < $2
           ORDER BY clip_id, observed_at_ms DESC
         ),
         v_to AS (
           SELECT DISTINCT ON (clip_id) clip_id, creator_id, views as v_to
-          FROM aggregator.clip_snapshots
+          FROM aggregator.clip_view_snapshots
           WHERE campaign_id = $1 AND observed_at_ms < $3
           ORDER BY clip_id, observed_at_ms DESC
         ),
@@ -309,7 +293,7 @@ export class ApiService {
         views_gained: Number(r.views_gained)
       }));
     } catch (e) {
-      console.error(e);
+      this.logger.error('Error fetching top clips', e);
     }
 
     let next_cursor = null;
@@ -340,7 +324,9 @@ export class ApiService {
           model: row.model
         };
       }
-    } catch (e) {}
+    } catch (e) {
+      this.logger.debug('Error getting clip relevance', e);
+    }
 
     throw new NotFoundException();
   }
