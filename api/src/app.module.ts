@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { ApiController } from './api.controller';
 import { ApiService } from './api.service';
 import { BullModule } from '@nestjs/bullmq';
+import Redis from 'ioredis';
 
 @Module({
   imports: [
@@ -14,9 +15,9 @@ import { BullModule } from '@nestjs/bullmq';
       synchronize: false,
     }),
     BullModule.forRoot({
-      connection: {
-        url: process.env.REDIS_URL || 'redis://localhost:6379',
-      },
+      connection: new Redis(process.env.REDIS_URL || 'redis://broker:6379', {
+        maxRetriesPerRequest: null,
+      }),
     }),
     BullModule.registerQueue({
       name: 'raw_events',

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
+import Redis from 'ioredis';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AggregatorConsumer } from './aggregator.consumer';
 import { OutboxCron } from './outbox.cron';
@@ -25,7 +26,7 @@ import * as crypto from 'crypto';
         DlqEvent,
         OutboxEvent,
       ],
-      synchronize: true, // For phase 1, auto-create tables
+      synchronize: false,
     }),
     TypeOrmModule.forFeature([
       ProcessedEvent,
@@ -42,10 +43,9 @@ import * as crypto from 'crypto';
       synchronize: false,
     }),
     BullModule.forRoot({
-      connection: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379', 10),
-      } as any,
+      connection: new Redis(process.env.REDIS_URL || 'redis://broker:6379', {
+        maxRetriesPerRequest: null,
+      }),
     }),
     BullModule.registerQueue({
       name: 'views_updated',
