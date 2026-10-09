@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "build": "nest build",
-    "start": "nest start"
+    "start": "nest start",
+    "test": "vitest run --globals"
   },
   "dependencies": {
     "@nestjs/bullmq": "^10.0.0",
@@ -21,8 +22,10 @@
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
-    "@types/node": "^20.0.0",
+    "@types/node": "^22.0.0",
     "@types/uuid": "^10.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.3"
   }
 }

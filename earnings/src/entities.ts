@@ -4,9 +4,6 @@ import { Entity, Column, CreateDateColumn } from 'typeorm';
 export class ProcessedUpdate {
   @Column({ primary: true, type: 'uuid' })
   aggregator_tx_id: string;
-
-  @CreateDateColumn()
-  processed_at: Date;
 }
 
 @Entity({ schema: 'earnings', name: 'campaign_spend' })
@@ -31,6 +28,9 @@ export class CreatorEarnings {
 
   @Column({ primary: true, type: 'text' })
   campaign_id: string;
+
+  @Column('int', { default: 0 })
+  clips: number;
 
   @Column('bigint')
   earned_cents: string;
