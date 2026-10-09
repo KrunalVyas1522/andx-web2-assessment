@@ -1,0 +1,44 @@
+=== Docker Unit Test Suite (make test equivalent with no stack running) ===
+Timestamp: 2026-10-09 18:49:41 UTC
+
+=== Running tests for gateway ===
+> gateway@1.0.0 test
+> vitest run --globals
+ RUN  v5.0.3 /app
+ ✓ test/validator.spec.ts (3 tests) 19ms
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+
+=== Running tests for aggregator ===
+> aggregator@1.0.0 test
+> vitest run --globals
+ RUN  v5.0.3 /app
+ ✓ test/dedup.spec.ts (2 tests) 24ms
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+
+=== Running tests for earnings ===
+> earnings@1.0.0 test
+> vitest run --globals
+ RUN  v5.0.3 /app
+ ✓ test/earnings.spec.ts (1 test) 19ms
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+
+=== Running tests for api ===
+> api@1.0.0 test
+> vitest run --globals
+ RUN  v5.0.3 /app
+ ✓ test/queries.spec.ts (1 test) 21ms
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+
+=== Running tests for classifier ===
+> classifier@1.0.0 test
+> vitest run --globals
+ RUN  v5.0.3 /app
+ ✓ test/relevance.spec.ts (2 tests) 26ms
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+
+=== ALL 5 SERVICES UNIT TESTS PASSED IN DOCKER WITH NO STACK RUNNING ===

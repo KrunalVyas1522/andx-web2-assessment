@@ -1,0 +1,13 @@
+=== Small Flow Seed 7 Acceptance Test ===
+Timestamp: 2026-10-09 18:21:33 UTC
+Command: node web2-kit/generator/andx-gen.js check --api http://localhost:8081 --expected web2-kit/expected/small-seed7.json --phase final --perf
+
+Output:
+stats checked
+spend checked for 42 campaigns
+earnings checked for 219 creators
+top-clips checked for 10 queries
+
+272 of 272 checks passed, 0 failures
+
+latency p95 (ms): stats=103.9 (n=51), spend=14.1 (n=242), earnings=11.3 (n=419), top=259.1 (n=220)

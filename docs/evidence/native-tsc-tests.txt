@@ -1,0 +1,103 @@
+﻿=== Native TSC and Tests Check ===
+
+--- GATEWAY TSC ---
+
+--- AGGREGATOR TSC ---
+
+--- EARNINGS TSC ---
+
+--- API TSC (tsconfig.build.json) ---
+
+--- CLASSIFIER TSC (tsconfig.build.json) ---
+
+--- NATIVE NODE TESTS ---
+TAP version 13
+# D:\\ANDX-Web2-Assessment\\api\\test\\queries.spec.ts:1
+# describe('API Queries', () => {
+# ^
+# ReferenceError: describe is not defined
+#     at Object.<anonymous> (D:\\ANDX-Web2-Assessment\\api\\test\\queries.spec.ts:1:1)
+#     at Module._compile (node:internal/modules/cjs/loader:1706:14)
+#     at Object..js (node:internal/modules/cjs/loader:1839:10)
+#     at Module.load (node:internal/modules/cjs/loader:1441:32)
+#     at Function._load (node:internal/modules/cjs/loader:1263:12)
+#     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+#     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+#     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+#     at node:internal/main/run_main_module:36:49
+# Node.js v22.21.1
+# Subtest: api\\test\\queries.spec.ts
+not ok 1 - api\\test\\queries.spec.ts
+  ---
+  duration_ms: 365.4604
+  type: 'test'
+  location: 'D:\\ANDX-Web2-Assessment\\api\\test\\queries.spec.ts:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# D:\\ANDX-Web2-Assessment\\classifier\\test\\relevance.spec.ts:1
+# describe('Classifier Relevance Score', () => {
+# ^
+# ReferenceError: describe is not defined
+#     at Object.<anonymous> (D:\\ANDX-Web2-Assessment\\classifier\\test\\relevance.spec.ts:1:1)
+#     at Module._compile (node:internal/modules/cjs/loader:1706:14)
+#     at Object..js (node:internal/modules/cjs/loader:1839:10)
+#     at Module.load (node:internal/modules/cjs/loader:1441:32)
+#     at Function._load (node:internal/modules/cjs/loader:1263:12)
+#     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+#     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+#     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+#     at node:internal/main/run_main_module:36:49
+# Node.js v22.21.1
+# Subtest: classifier\\test\\relevance.spec.ts
+not ok 2 - classifier\\test\\relevance.spec.ts
+  ---
+  duration_ms: 326.4473
+  type: 'test'
+  location: 'D:\\ANDX-Web2-Assessment\\classifier\\test\\relevance.spec.ts:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/resolve:274
+#     throw new ERR_MODULE_NOT_FOUND(
+#           ^
+# Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\\ANDX-Web2-Assessment\\gateway\\src\\validator' imported from D:\\ANDX-Web2-Assessment\\gateway\\test\\validator.spec.ts
+#     at finalizeResolution (node:internal/modules/esm/resolve:274:11)
+#     at moduleResolve (node:internal/modules/esm/resolve:859:10)
+#     at defaultResolve (node:internal/modules/esm/resolve:983:11)
+#     at \#cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+#     at ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+#     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+#     at ModuleJob._link (node:internal/modules/esm/module_job:182:49) {
+#   code: 'ERR_MODULE_NOT_FOUND',
+#   url: 'file:///D:/ANDX-Web2-Assessment/gateway/src/validator'
+# }
+# Node.js v22.21.1
+# Subtest: gateway\\test\\validator.spec.ts
+not ok 3 - gateway\\test\\validator.spec.ts
+  ---
+  duration_ms: 321.4355
+  type: 'test'
+  location: 'D:\\ANDX-Web2-Assessment\\gateway\\test\\validator.spec.ts:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 0
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 437.5081
+

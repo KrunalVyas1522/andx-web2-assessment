@@ -1,0 +1,13 @@
+=== Small Flow Seed 2 Acceptance Test (Oracle Generated) ===
+Timestamp: 2026-10-09 18:28:44 UTC
+Command: node web2-kit/generator/andx-gen.js check --api http://localhost:8081 --expected expected-small-2.json --phase final --perf
+
+Output:
+stats checked
+spend checked for 42 campaigns
+earnings checked for 201 creators
+top-clips checked for 10 queries
+
+254 of 254 checks passed, 0 failures
+
+latency p95 (ms): stats=89.3 (n=51), spend=8.9 (n=242), earnings=6.8 (n=401), top=255.4 (n=220)
