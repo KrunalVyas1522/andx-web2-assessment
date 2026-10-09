@@ -1,5 +1,9 @@
 test:
-	docker compose exec -T api npm run test
+	docker compose run --rm gateway npm run test
+	docker compose run --rm aggregator npm run test
+	docker compose run --rm earnings npm run test
+	docker compose run --rm api npm run test
+	docker compose run --rm classifier npm run test
 up:
 	docker compose up -d --build
 down:
