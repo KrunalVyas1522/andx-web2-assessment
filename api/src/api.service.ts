@@ -37,7 +37,8 @@ export class ApiService {
     `);
 
     // Upsert
-    const values = campaigns.map(c => [
+    const list = Array.isArray(campaigns) ? campaigns : ((campaigns as any)?.campaigns || []);
+    const values = list.map((c: any) => [
       c.campaign_id,
       c.budget_cents,
       c.cpm_cents,
@@ -66,34 +67,18 @@ export class ApiService {
   }
 
   async getStats() {
-    // We expect these tables to be created by the aggregator service.
-    // distinct_valid_events from aggregator.processed_events
-    let distinct_valid_events = 0;
-    try {
-      const res1 = await this.em.query(`SELECT COUNT(*) as cnt FROM aggregator.processed_events;`);
-      distinct_valid_events = parseInt(res1[0].cnt, 10);
-    } catch (e) {
-      this.logger.debug('Error getting processed_events count', e);
-    }
+    const res1 = await this.em.query(`SELECT COUNT(*) as cnt FROM aggregator.processed_events;`);
+    const distinct_valid_events = parseInt(res1[0]?.cnt || '0', 10);
 
-    let late_dropped = 0;
-    try {
-      const res2 = await this.em.query(`SELECT COUNT(*) as cnt FROM aggregator.late_events;`);
-      late_dropped = parseInt(res2[0].cnt, 10);
-    } catch (e) {
-      this.logger.debug('Error getting late_events count', e);
-    }
+    const res2 = await this.em.query(`SELECT COUNT(*) as cnt FROM aggregator.late_events;`);
+    const late_dropped = parseInt(res2[0]?.cnt || '0', 10);
 
     let dlq_invalid = 0;
     let dlq_unknown = 0;
-    try {
-      const res3 = await this.em.query(`SELECT reason, COUNT(*) as cnt FROM aggregator.dlq GROUP BY reason;`);
-      for (const row of res3) {
-        if (row.reason === 'invalid_schema') dlq_invalid = parseInt(row.cnt, 10);
-        if (row.reason === 'unknown_campaign') dlq_unknown = parseInt(row.cnt, 10);
-      }
-    } catch (e) {
-      this.logger.debug('Error getting dlq count', e);
+    const res3 = await this.em.query(`SELECT reason, COUNT(*) as cnt FROM aggregator.dlq GROUP BY reason;`);
+    for (const row of res3) {
+      if (row.reason === 'invalid_schema') dlq_invalid = parseInt(row.cnt, 10);
+      if (row.reason === 'unknown_campaign') dlq_unknown = parseInt(row.cnt, 10);
     }
 
     return {
@@ -108,39 +93,30 @@ export class ApiService {
 
   async replayDlq(reason: string) {
     if (!reason) {
-      return { accepted: false };
+      return { replayed: 0 };
     }
     
-    try {
-      await this.replayQueue.add('replay_batch', { reason });
-    } catch (e) {
-      this.logger.error('Failed to enqueue replay job', e);
+    let replayed = 0;
+    const res = await this.em.query(`SELECT COUNT(*) as cnt FROM aggregator.dlq WHERE reason = $1`, [reason]);
+    if (res.length > 0) {
+      replayed = parseInt(res[0].cnt, 10);
     }
+    await this.replayQueue.add('replay_batch', { reason });
     
-    return {}; // 202 Accepted body
+    return { replayed };
   }
 
   async getCampaignSpend(id: string) {
-    let campaign;
-    try {
-      const res = await this.em.query(`SELECT * FROM api.campaigns WHERE id = $1`, [id]);
-      if (res.length > 0) campaign = res[0];
-    } catch (e) {
-      this.logger.debug('Error getting campaign details', e);
-    }
-
-    if (!campaign) {
+    const res = await this.em.query(`SELECT * FROM api.campaigns WHERE id = $1`, [id]);
+    if (!res || res.length === 0) {
       throw new NotFoundException();
     }
+    const campaign = res[0];
 
-    let spend = { raw_earnings_cents: 0, spend_cents: 0, paid_clips: 0 };
-    try {
-      const spendRes = await this.em.query(`SELECT * FROM earnings.campaign_spend WHERE campaign_id = $1`, [id]);
-      if (spendRes.length > 0) {
-        spend = spendRes[0];
-      }
-    } catch (e) {
-      this.logger.debug('Error getting campaign spend', e);
+    let spend = { raw_earnings_cents: '0', spend_cents: '0', paid_clips: 0 };
+    const spendRes = await this.em.query(`SELECT * FROM earnings.campaign_spend WHERE campaign_id = $1`, [id]);
+    if (spendRes.length > 0) {
+      spend = spendRes[0];
     }
 
     const budget_cents = Number(campaign.budget_cents);
@@ -152,7 +128,7 @@ export class ApiService {
       budget_cents,
       cpm_cents: Number(campaign.cpm_cents),
       per_clip_cap_cents: Number(campaign.per_clip_cap_cents),
-      end_at: campaign.end_at,
+      end_at: new Date(campaign.end_at).toISOString(),
       raw_earnings_cents,
       spend_cents,
       budget_exhausted: raw_earnings_cents > budget_cents,
@@ -161,17 +137,12 @@ export class ApiService {
   }
 
   async getCreatorEarnings(id: string) {
-    let entries = [];
-    try {
-      entries = await this.em.query(`
-        SELECT campaign_id, earned_cents as earned_cents, clips
-        FROM earnings.creator_earnings 
-        WHERE creator_id = $1 AND earned_cents > 0
-        ORDER BY campaign_id ASC
-      `, [id]);
-    } catch (e) {
-      this.logger.debug('Error getting creator earnings', e);
-    }
+    const entries = await this.em.query(`
+      SELECT campaign_id, earned_cents, clips
+      FROM earnings.creator_earnings 
+      WHERE creator_id = $1 AND earned_cents > 0
+      ORDER BY campaign_id ASC
+    `, [id]);
 
     let total_cents = 0;
     const campaigns = entries.map((e: any) => {
@@ -192,16 +163,8 @@ export class ApiService {
   }
 
   async getTopClips(campaignId: string, fromStr: string, toStr: string, limitStr: string, cursor: string) {
-    // Validate campaign exists
-    let campaign;
-    try {
-      const res = await this.em.query(`SELECT id FROM api.campaigns WHERE id = $1`, [campaignId]);
-      if (res.length > 0) campaign = res[0];
-    } catch (e) {
-      this.logger.debug('Error checking campaign existence for top clips', e);
-    }
-    
-    if (!campaign) {
+    const res = await this.em.query(`SELECT id FROM api.campaigns WHERE id = $1`, [campaignId]);
+    if (!res || res.length === 0) {
       throw new NotFoundException();
     }
 
@@ -235,99 +198,93 @@ export class ApiService {
       throw new BadRequestException("limit must be between 1 and 200");
     }
 
-    // Parse cursor (base64 encoded JSON { g: views_gained, c: clip_id })
-    let cursorG = null;
-    let cursorC = null;
+    let cursorG: number | null = null;
+    let cursorC: string | null = null;
     if (cursor) {
       try {
         const decoded = JSON.parse(Buffer.from(cursor, 'base64').toString('utf8'));
         cursorG = Number(decoded.g);
         cursorC = decoded.c;
       } catch (e) {
-        this.logger.debug('Cursor parsing failed', e);
         throw new BadRequestException("Invalid cursor");
       }
     }
 
-    // aggregator.clip_snapshots (clip_id, campaign_id, creator_id, observed_at_ms, views)
-    // For V(clip, t), we need the snapshot with the greatest observed_at_ms strictly BEFORE t (epoch ms)
     const fromMs = fromDate.getTime();
     const toMs = toDate.getTime();
 
-    let items = [];
-    try {
-      const query = `
-        WITH v_from AS (
-          SELECT DISTINCT ON (clip_id) clip_id, views as v_from
-          FROM aggregator.clip_view_snapshots
-          WHERE campaign_id = $1 AND observed_at_ms < $2
-          ORDER BY clip_id, observed_at_ms DESC
-        ),
-        v_to AS (
-          SELECT DISTINCT ON (clip_id) clip_id, creator_id, views as v_to
-          FROM aggregator.clip_view_snapshots
-          WHERE campaign_id = $1 AND observed_at_ms < $3
-          ORDER BY clip_id, observed_at_ms DESC
-        ),
-        gained AS (
-          SELECT 
-            t.clip_id, 
-            t.creator_id, 
-            t.v_to - COALESCE(f.v_from, 0) AS views_gained
-          FROM v_to t
-          LEFT JOIN v_from f ON t.clip_id = f.clip_id
-          WHERE t.v_to - COALESCE(f.v_from, 0) > 0
-        )
-        SELECT clip_id, creator_id, views_gained
-        FROM gained
-        WHERE ($4::bigint IS NULL OR views_gained < $4 OR (views_gained = $4 AND clip_id > $5))
-        ORDER BY views_gained DESC, clip_id ASC
-        LIMIT $6
-      `;
+    const query = `
+      WITH v_from AS (
+        SELECT DISTINCT ON (clip_id) clip_id, views as v_from
+        FROM aggregator.clip_view_snapshots
+        WHERE campaign_id = $1 AND observed_at_ms < $2
+        ORDER BY clip_id, observed_at_ms DESC
+      ),
+      v_to AS (
+        SELECT DISTINCT ON (clip_id) clip_id, creator_id, views as v_to
+        FROM aggregator.clip_view_snapshots
+        WHERE campaign_id = $1 AND observed_at_ms < $3
+        ORDER BY clip_id, observed_at_ms DESC
+      ),
+      gained AS (
+        SELECT 
+          t.clip_id, 
+          t.creator_id, 
+          t.v_to - COALESCE(f.v_from, 0) AS views_gained
+        FROM v_to t
+        LEFT JOIN v_from f ON t.clip_id = f.clip_id
+        WHERE t.v_to - COALESCE(f.v_from, 0) > 0
+      )
+      SELECT clip_id, creator_id, views_gained
+      FROM gained
+      WHERE ($4::bigint IS NULL OR views_gained < $4 OR (views_gained = $4 AND clip_id > $5))
+      ORDER BY views_gained DESC, clip_id COLLATE "C" ASC
+      LIMIT $6
+    `;
 
-      const rows = await this.em.query(query, [campaignId, fromMs, toMs, cursorG, cursorC, limit]);
-      
-      items = rows.map((r: any) => ({
-        clip_id: r.clip_id,
-        creator_id: r.creator_id,
-        views_gained: Number(r.views_gained)
-      }));
-    } catch (e) {
-      this.logger.error('Error fetching top clips', e);
+    // Request limit + 1 to check if there is a next page
+    const rows = await this.em.query(query, [campaignId, fromMs, toMs, cursorG, cursorC, limit + 1]);
+    
+    let hasNext = false;
+    let resultRows = rows;
+    if (rows.length > limit) {
+      hasNext = true;
+      resultRows = rows.slice(0, limit);
     }
 
+    const items = resultRows.map((r: any) => ({
+      clip_id: r.clip_id,
+      creator_id: r.creator_id,
+      views_gained: Number(r.views_gained)
+    }));
+
     let next_cursor = null;
-    if (items.length === limit) {
+    if (hasNext && items.length > 0) {
       const last = items[items.length - 1];
       next_cursor = Buffer.from(JSON.stringify({ g: last.views_gained, c: last.clip_id })).toString('base64');
     }
 
     return {
       campaign_id: campaignId,
-      from: fromStr,
-      to: toStr,
+      from: fromDate.toISOString(),
+      to: toDate.toISOString(),
       items,
       next_cursor
     };
   }
 
   async getClipRelevance(clipId: string) {
-    try {
-      const res = await this.em.query(`SELECT * FROM classifier.clip_relevance WHERE clip_id = $1`, [clipId]);
-      if (res.length > 0) {
-        const row = res[0];
-        return {
-          clip_id: row.clip_id,
-          campaign_id: row.campaign_id,
-          on_brief: row.on_brief,
-          score: Number(row.score),
-          model: row.model
-        };
-      }
-    } catch (e) {
-      this.logger.debug('Error getting clip relevance', e);
+    const res = await this.em.query(`SELECT * FROM classifier.clip_relevance WHERE clip_id = $1`, [clipId]);
+    if (res && res.length > 0) {
+      const row = res[0];
+      return {
+        clip_id: row.clip_id,
+        campaign_id: row.campaign_id,
+        on_brief: row.on_brief,
+        score: Number(row.score),
+        model: row.model
+      };
     }
-
     throw new NotFoundException();
   }
 }

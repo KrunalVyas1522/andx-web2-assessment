@@ -140,8 +140,10 @@ Transcript: ${event.transcript || '(empty)'}
 
       await this.relevanceRepo.save({
         clip_id: event.clip_id,
+        campaign_id: event.campaign_id,
         on_brief: Boolean(parsed.on_brief),
-        score: Number(parsed.score) || 0.0
+        score: Number(parsed.score) || 0.0,
+        model: this.model
       });
       this.logger.log(`Classified ${event.clip_id}: ${parsed.on_brief}`);
 

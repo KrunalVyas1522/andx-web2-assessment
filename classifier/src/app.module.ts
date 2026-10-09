@@ -25,7 +25,7 @@ import { ClipRelevance } from './clip-relevance.entity';
       }),
     }),
     BullModule.registerQueue({
-      name: 'raw_events',
+      name: 'clip_text',
     }),
   ],
   providers: [ClassifierProcessor, ClassifierService],
